@@ -5,6 +5,8 @@ const filterText = require("../helper-functions/badwords-filter")
 
 // needs to add admin bypass for all functions
 // refactor to extract finding tweet and checking if it exists
+// add upload img to tweet gallery
+// disable viewing a tweet if user is banned
 
 const maxTweetLength = 150;
 const createTweet = async (req, auth, res) => {
