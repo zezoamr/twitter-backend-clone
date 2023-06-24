@@ -64,6 +64,8 @@ const replyingToTweetObjSelectString = "_id replyingTo owner text likeCount retw
 const userObjSelectString = "_id screenName tag isPrivate profileAvater.url";
 const viewTweet = async (req, res) => {
     try {
+        if(req.user.isBanned == true) return res.status(400).send("user is banned")
+        
         const _id = req.params.id
         const tweet = await tweet.findOne({ _id })
         if (!tweet) {
@@ -75,16 +77,18 @@ const viewTweet = async (req, res) => {
             path: "retweetedTweet",
             select: retweetedTweetObjSelectString,
             populate: {
-                path: "authorId",
-                select: userObjSelectString
+                path: "owner",
+                select: userObjSelectString,
+                match: { isBanned: { $ne: true } }
             }
         })
         await tweet.populate({
             path: "replyingTo",
             select: replyingToTweetObjSelectString,
             populate: {
-                path: "authorId",
-                select: userObjSelectString
+                path: "owner",
+                select: userObjSelectString,
+                match: { isBanned: { $ne: true } }
             }
         })
 
