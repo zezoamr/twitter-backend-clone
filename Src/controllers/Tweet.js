@@ -58,7 +58,6 @@ const deleteTweet = async (req, auth, res) => {
 
 }
 
-// working on it
 const retweetedTweetObjSelectString = "_id replyingTo owner text likeCount retweetCount gallery likes replyCount createdAt";
 const replyingToTweetObjSelectString = "_id replyingTo owner text likeCount retweetCount gallery likes replyCount createdAt";
 const userObjSelectString = "_id screenName tag isPrivate profileAvater.url";
@@ -73,6 +72,7 @@ const viewTweet = async (req, res) => {
         }
 
         await tweet.populate({ path: "owner", select: userObjSelectString })
+
         await tweet.populate({
             path: "retweetedTweet",
             select: retweetedTweetObjSelectString,
@@ -91,9 +91,19 @@ const viewTweet = async (req, res) => {
                 match: { isBanned: { $ne: true } }
             }
         })
-
-
-        res.status(200).send(tweet)
+        // if the tweet that is retweeted or replied to doesn't exist anymore populate will return a null object and we can assume that its deleted
+        let retweetedTweetIsLiked = null
+        if(tweet.retweetedTweet) retweetedTweetIsLiked = false
+        if(tweet.retweetedTweet && tweet.retweetedTweet.tweetId.likes.some(
+            (like) => like.like.toString() == req.user._id.toString()
+          )) retweetedTweetIsLiked = true
+        
+        
+        const currentUserLikesThisTweet = tweet.likes.some(
+            (like) => like.like.toString() == req.user._id.toString()
+          );
+        
+        res.status(200).send({tweet, currentUserLikesThisTweet, retweetedTweetIsLiked})
     } catch (e) {
         res.status(400).send(e)
     }
