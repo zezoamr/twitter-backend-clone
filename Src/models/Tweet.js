@@ -26,7 +26,7 @@ var tweetSchema = new mongoose.Schema({
     gallery: [
         {
             photo: {
-                type: String
+                type: Buffer
             }
         },
     ],
@@ -55,7 +55,11 @@ var tweetSchema = new mongoose.Schema({
                 virtuals: true
             }
         },
-    ]
+    ],
+    textEdited:{
+        type: boolean,
+        default: false
+    }
 
 }, {
     timestamps: true,
@@ -67,12 +71,15 @@ var tweetSchema = new mongoose.Schema({
     }
 });
 
-tweetSchema.virtual('reply', {
+tweetSchema.virtual('replies', {
     ref: 'Tweet',
     localField: '_id',
     foreignField: 'replyingTo'
 })
 
+tweetSchema.virtual('popularity').get(function () {
+    return this.likeCount * 0.7 + this.retweetCount + this.replyCount * 0.8;
+})
 
 tweetSchema.methods.toJSON = function () {
     const tweet = this
