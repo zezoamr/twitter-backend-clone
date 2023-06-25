@@ -4,9 +4,10 @@ const filterText = require("../helper-functions/badwords-filter")
 // auth provides req.user and req.token to the request object
 
 // needs to add admin bypass for all functions
-// refactor to extract finding tweet and checking if it exists
+// refactor to extract finding tweet and checking if it exists 
 // add upload img to tweet gallery
-// disable viewing a tweet if user is banned
+// view multiple tweets / user profile
+// check on blocked users
 
 const maxTweetLength = 150;
 const createTweet = async (req, auth, res) => {
@@ -20,9 +21,12 @@ const createTweet = async (req, auth, res) => {
         await tweet.save()
 
         // need to increase reply or retweet count if this tweet was a result of that
+        // prevent retweeting or replying to something a banned user did
+        // check if replying/retweeted tweet still exists
         if (tweet.replyingTo) {
             const tweetreplyingTo = await tweet.findOne({ _id: tweet.replyingTo })
-            if (!tweetreplyingTo) {
+            const userreplyingTo = await User.findOne({ _id: tweetreplyingTo.owner })
+            if (!tweetreplyingTo || userreplyingTo.isBanned == true) {
                 res.status(404).send()
             }
             tweetreplyingTo.replyCount += 1
@@ -30,7 +34,8 @@ const createTweet = async (req, auth, res) => {
         }
         if (tweet.retweetedTweet) {
             const retweetedTweet = await tweet.findOne({ _id: tweet.retweetedTweet })
-            if (!retweetedTweet) {
+            const userretweetedTweet = await User.findOne({ _id: tweetreplyingTo.owner })
+            if (!retweetedTweet || userretweetedTweet.isBanned == true) {  
                 res.status(404).send()
             }
             retweetedTweet.retweetCount += 1
@@ -47,10 +52,43 @@ const createTweet = async (req, auth, res) => {
 const deleteTweet = async (req, auth, res) => {
     try {
         const _id = req.params.id
-        const tweet = await tweet.findOneAndDelete({ owner: req.user._id, _id })
+        const owner = req.user._id 
+        const tweet = await tweet.findOneAndDelete({ owner, _id })
         if (!tweet) {
             res.status(404).send()
         }
+        res.status(200).send(tweet)
+    } catch (e) {
+        res.status(400).send(e)
+    }
+
+}
+
+const deleteAllUserTweets = async (req, auth, res) => {
+    try {
+        const owner = req.user._id 
+        const tweet = await tweet.deleteMany({ owner })
+        if (!tweet) {
+            res.status(404).send()
+        }
+        res.status(200).send()
+    } catch (e) {
+        res.status(400).send(e)
+    }
+
+}
+
+const editTweetText = async (req, auth, res) => {
+    try {
+        const _id = req.params.id
+        const owner = req.user._id 
+        const tweet = await tweet.findOne({ owner, _id })
+        if (!tweet) {
+            res.status(404).send()
+        }
+        tweet.text = req.body.text
+        await tweet.save()
+
         res.status(200).send(tweet)
     } catch (e) {
         res.status(400).send(e)
@@ -91,6 +129,15 @@ const viewTweet = async (req, res) => {
                 match: { isBanned: { $ne: true } }
             }
         })
+        await tweet.populate({
+            path: "replies",
+            select: replyingToTweetObjSelectString,
+            populate: {
+                path: "owner",
+                select: userObjSelectString,
+                match: { isBanned: { $ne: true } }
+            }
+        })
         // if the tweet that is retweeted or replied to doesn't exist anymore populate will return a null object and we can assume that its deleted
         let retweetedTweetIsLiked = null
         if(tweet.retweetedTweet) retweetedTweetIsLiked = false
@@ -102,6 +149,7 @@ const viewTweet = async (req, res) => {
         const currentUserLikesThisTweet = tweet.likes.some(
             (like) => like.like.toString() == req.user._id.toString()
           );
+
         
         res.status(200).send({tweet, currentUserLikesThisTweet, retweetedTweetIsLiked})
     } catch (e) {
@@ -160,6 +208,8 @@ const likeUnlikeTweet = async (req, auth, res) => {
 module.exports = {
     createTweet,
     deleteTweet,
+    deleteAllUserTweets,
+    editTweetText,
     viewTweet,
     viewTweetLikers,
     likeUnlikeTweet
