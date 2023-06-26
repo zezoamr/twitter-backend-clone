@@ -191,7 +191,7 @@ const likeUnlikeTweet = async (req, auth, res) => {
             tweet.likes = tweet.likes.filter((like) => like != req.user._id)
             tweet.likeCount -= 1
         } else {
-            tweet.likes.append(req.user._id)
+            tweet.likes.push(req.user._id)
             tweet.likeCount += 1
         }
 
