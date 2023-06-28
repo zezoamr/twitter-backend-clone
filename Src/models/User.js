@@ -68,10 +68,6 @@ userSchema = mongoose.Schema({
         type: Boolean,
         default: false
     },
-    verified: {
-        type: Boolean,
-        default: false
-    },
     email: {
         type: String,
         trim: true,
@@ -144,7 +140,11 @@ userSchema = mongoose.Schema({
     isAdmin: {
         type: Boolean,
         default: false
-    }
+    },
+    /*verified: {
+        type: Boolean,
+        default: false
+    },*/ //verified field isn't needed since we send verification code, check that the email exists and doesn't belong to any other users all before user is created 
 }, {
     timestamps: true,
     toJSON: {
