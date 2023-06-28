@@ -19,10 +19,12 @@ const notificationSchema = new mongoose.Schema({
     tweetId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'tweet',
+        default: null
     },
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'tweet',
+        default: null
     }
 }, {
     timestamps: true

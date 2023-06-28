@@ -4,7 +4,7 @@ const filterText = require("../helper-functions/badwords-filter")
 // auth provides req.user and req.token to the request object
 
 // needs to add admin bypass for all functions
-// refactor to extract finding tweet and checking if it exists 
+// refactor to extract cleaing text tweet 
 // add upload img to tweet gallery
 // view multiple tweets / user profile
 // check on blocked users
@@ -26,7 +26,7 @@ const createTweet = async (req, auth, res) => {
         if (tweet.replyingTo) {
             const tweetreplyingTo = await tweet.findOne({ _id: tweet.replyingTo })
             const userreplyingTo = await User.findOne({ _id: tweetreplyingTo.owner })
-            if (!tweetreplyingTo || userreplyingTo.isBanned == true) {
+            if (!tweetreplyingTo || userreplyingTo.isBanned === true) {
                 res.status(404).send()
             }
             tweetreplyingTo.replyCount += 1
@@ -35,7 +35,7 @@ const createTweet = async (req, auth, res) => {
         if (tweet.retweetedTweet) {
             const retweetedTweet = await tweet.findOne({ _id: tweet.retweetedTweet })
             const userretweetedTweet = await User.findOne({ _id: tweetreplyingTo.owner })
-            if (!retweetedTweet || userretweetedTweet.isBanned == true) {  
+            if (!retweetedTweet || userretweetedTweet.isBanned === true) {  
                 res.status(404).send()
             }
             retweetedTweet.retweetCount += 1
@@ -86,7 +86,10 @@ const editTweetText = async (req, auth, res) => {
         if (!tweet) {
             res.status(404).send()
         }
+        req.body.text = req.body.text.slice(0, maxTweetLength); //triming the text
+        req.body.text = filterText(req.body.text) //filtering any bad words in it
         tweet.text = req.body.text
+        tweet.textEdited = true
         await tweet.save()
 
         res.status(200).send(tweet)
@@ -101,7 +104,7 @@ const replyingToTweetObjSelectString = "_id replyingTo owner text likeCount retw
 const userObjSelectString = "_id screenName tag isPrivate profileAvater.url";
 const viewTweet = async (req, res) => {
     try {
-        if(req.user.isBanned == true) return res.status(400).send("user is banned")
+        if(req.user.isBanned === true) return res.status(400).send("user is banned")
         
         const _id = req.params.id
         const tweet = await tweet.findOne({ _id })
@@ -142,12 +145,12 @@ const viewTweet = async (req, res) => {
         let retweetedTweetIsLiked = null
         if(tweet.retweetedTweet) retweetedTweetIsLiked = false
         if(tweet.retweetedTweet && tweet.retweetedTweet.tweetId.likes.some(
-            (like) => like.like.toString() == req.user._id.toString()
+            (like) => like.like.toString() === req.user._id.toString()
           )) retweetedTweetIsLiked = true
         
         
         const currentUserLikesThisTweet = tweet.likes.some(
-            (like) => like.like.toString() == req.user._id.toString()
+            (like) => like.like.toString() === req.user._id.toString()
           );
 
         
@@ -185,10 +188,10 @@ const likeUnlikeTweet = async (req, auth, res) => {
             res.status(404).send()
         }
 
-        const likedbefore = tweet.likes.some((like) => like == req.user._id)
+        const likedbefore = tweet.likes.some((like) => like === req.user._id)
 
         if (likedbefore) {
-            tweet.likes = tweet.likes.filter((like) => like != req.user._id)
+            tweet.likes = tweet.likes.filter((like) => like !== req.user._id)
             tweet.likeCount -= 1
         } else {
             tweet.likes.push(req.user._id)

@@ -18,6 +18,14 @@ var tweetSchema = new mongoose.Schema({
         ref: "Tweet",
         default: null
     },
+    isReply: {
+        type: boolean,
+        default: false
+    },
+    isRetweet: {
+        type: boolean,
+        default: false
+    },
     text: {
         type: String,
         required: true,
@@ -56,7 +64,7 @@ var tweetSchema = new mongoose.Schema({
             }
         },
     ],
-    textEdited:{
+    textEdited: {
         type: boolean,
         default: false
     }
