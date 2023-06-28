@@ -64,7 +64,7 @@ userSchema = mongoose.Schema({
         required: true,
         minlength: 6
     },
-    blueCheckMark:{
+    verified:{ // blueCheckMark
         type: Boolean,
         default: false
     },
@@ -141,7 +141,7 @@ userSchema = mongoose.Schema({
         type: Boolean,
         default: false
     },
-    /*verified: {
+    /*verifiedemail: {
         type: Boolean,
         default: false
     },*/ //verified field isn't needed since we send verification code, check that the email exists and doesn't belong to any other users all before user is created 
