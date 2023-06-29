@@ -14,7 +14,7 @@ const VerifyCodeSchema = new mongoose.Schema({
             }
         }
     },
-    Code: {
+    code: {
         type: string,
         required: true,
     },
