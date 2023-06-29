@@ -2,19 +2,28 @@ const multer = require('multer');
 const sharp = require('sharp');
 
 // use process functions in each route to process img before saving it to mongodb object
-const ProcessAvatar = async (avatar) => await sharp(avatar).resize({width: 250, height: 250}).png().toBuffer() // avatar == req.file.buffer
-const processBanner = async (banner) => await sharp(banner).resize({width: 500, height: 250}).png().toBuffer() // banner == req.file.buffer
+const userAvatarSize = {
+    width: 250,
+    height: 250
+};
+const userBannerSize = {
+    width: 500,
+    height: 250
+};
+const ProcessAvatar = async (avatar) => await sharp(avatar).resize(userAvatarSize).png().toBuffer() // avatar == req.file.buffer
+const processBanner = async (banner) => await sharp(banner).resize(userBannerSize).png().toBuffer() // banner == req.file.buffer
 const processImg = async (img) => await sharp(img).png().toBuffer() // img == req.files[i].buffer
 
-const fileSize = 1000000; //max filesize
+const fileSize = 1000000; // max filesize
 const maxUploadcount = 10;
 
+const imgExtensionRegex = /\.(jpg|jpeg|png)$/;
 const uploadUserBanner = multer({
     limits: {
         fileSize
     },
     fileFilter(req, file, cb) {
-        if (!file.originalname.match(/\.(jpg|jpeg|png)$/)) {
+        if (!file.originalname.match(imgExtensionRegex)) {
             return cb(new Error('Please upload an image'))
         }
 
@@ -27,7 +36,7 @@ const uploadUserProfileAvatar = multer({
         fileSize
     },
     fileFilter(req, file, cb) {
-        if (!file.originalname.match(/\.(jpg|jpeg|png)$/)) {
+        if (!file.originalname.match(imgExtensionRegex)) {
             return cb(new Error('Please upload an image'))
         }
 
@@ -40,7 +49,7 @@ const uploadTweetGallery = multer({
         fileSize
     },
     fileFilter(req, file, cb) {
-        if (!file.originalname.match(/\.(jpg|jpeg|png)$/)) {
+        if (!file.originalname.match(imgExtensionRegex)) {
             return cb(new Error('Please upload an image'))
         }
 
