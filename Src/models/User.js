@@ -152,8 +152,7 @@ userSchema = mongoose.Schema({
     },
     toObject: {
         virtuals: true
-    },
-    strictPopulate: false
+    }
 
 });
 
@@ -184,7 +183,7 @@ userSchema.methods.generateAuthToken = async function () {
     }, process.env.secretkey || 'Secretunnel..SECRETTUNNEL!!!')
     user.tokens.push({token})
     await user.save()
-    next()
+    return token
 
 }
 
