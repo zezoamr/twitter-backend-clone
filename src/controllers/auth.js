@@ -1,7 +1,10 @@
 const auth = require("../middleware/auth")
 const User = require("../models/User")
+const {sendEmail} = require('../helper-functions/nodemailer')
 const VerifyCode = require("../models/VerifyCode")
 const bycrypt = require("bcryptjs")
+const {generatePassword} = require('../helper-functions/passgenerator')
+const {generateVerificationCode} = require('../helper-functions/verifycodegen')
 
 
 const userLogin = async (req, res) => {
@@ -39,7 +42,7 @@ const userLogout = async (req, auth, res) => {
 
         res.send()
     } catch (e) {
-        res.status(500).send()
+        res.status(400).send()
     }
 }
 
@@ -50,16 +53,37 @@ const userLogoutAllDevices = async (req, auth, res) => {
 
         res.send()
     } catch (e) {
-        res.status(500).send()
+        res.status(400).send()
     }
 }
 
-const userSendVerificationCode = async (req, auth, res) => {} // check if email is used by another user first here before generating token
+const userSendVerificationCode = async (req, res) => {
+    try {
+        // check if email is used by another user first here before generating token
+
+        //generate the code
+
+        //make new verifycode object or modify exisitng object in case of resending
+
+
+        //send email
+        const subject = 'your verification code for twitter-clone'
+        const to = req.body.email
+        const text = 'your verification code is ' + + 
+
+        sendEmail(subject, text, to)
+
+        res.status(200).send()
+
+    } catch (e) {
+        res.status(400).send()
+    }
+} 
 
 const userVerifyCode = async (req, auth, res) => {
     try {
         verification = VerifyCode.findOne({email: req.body.email, code: req.body.code})
-        if (! verification) {
+        if (!verification) {
             res.status(404).send()
         }
         await verification.delete()
@@ -67,12 +91,30 @@ const userVerifyCode = async (req, auth, res) => {
         res.status(200).send()
 
     } catch (e) {
-        res.status(500).send()
+        res.status(400).send()
     }
 
 }
 
-const userResetPassword = async (req, auth, res) => {}
+const userResetPassword = async (req, auth, res) => {
+    try {
+        const changedPass = generatePassword(12)
+        const subject = 'your password have been reset for twitter-clone'
+        const to = req.user.email
+        const text = 'your new pass is ' + changedPass + ' please change it as soon as possible'
+
+        req.user.password = changedPass
+        await req.user.save()
+
+        sendEmail(subject, text, to)
+
+        res.status(200).send()
+
+    } catch (e) {
+        res.status(400).send()
+    }
+
+}
 
 const userChangePassword = async (req, auth, res) => {
     try {
@@ -86,7 +128,7 @@ const userChangePassword = async (req, auth, res) => {
 
         res.send()
     } catch (e) {
-        res.status(500).send()
+        res.status(400).send()
     }
 
 }
