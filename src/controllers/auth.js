@@ -60,16 +60,28 @@ const userLogoutAllDevices = async (req, auth, res) => {
 const userSendVerificationCode = async (req, res) => {
     try {
         // check if email is used by another user first here before generating token
+        const aUserAlreadyHasThisEmail = User.findone({emai: req.body.email})
+        if(aUserAlreadyHasThisEmail){
+            res.status(400).send('a user already has this email')
+        }
 
         //generate the code
-
+        const newcode = generateVerificationCode(8)
         //make new verifycode object or modify exisitng object in case of resending
-
+        let verification = VerifyCode.findOne({emai: req.body.email})
+        if(verification){
+            verification.code = newcode
+            await verification.save()
+        }
+        else{
+            verification = new VerifyCode(req.body)
+            await verification.save()
+        }
 
         //send email
         const subject = 'your verification code for twitter-clone'
         const to = req.body.email
-        const text = 'your verification code is ' + + 
+        const text = 'your verification code is ' + newcode 
 
         sendEmail(subject, text, to)
 
@@ -80,7 +92,7 @@ const userSendVerificationCode = async (req, res) => {
     }
 } 
 
-const userVerifyCode = async (req, auth, res) => {
+const userVerifyCode = async (req, res) => {
     try {
         verification = VerifyCode.findOne({email: req.body.email, code: req.body.code})
         if (!verification) {
