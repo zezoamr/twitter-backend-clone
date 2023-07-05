@@ -36,8 +36,8 @@ const userDelete = async (req, auth, res) => { // deletes user and his tweets
         if (! user) {
             throw new Error()
         }
-        
-        await tweet.deleteMany({ owner: user })
+
+        await tweet.deleteMany({owner: user})
         await user.delete()
         res.status(200).send()
     } catch (e) {
@@ -49,9 +49,75 @@ const userFollow = async (req, auth, res) => {}
 
 const userUnFollow = async (req, auth, res) => {}
 
-const userGetFollowers = async (req, auth, res) => {}
+const userGetFollowers = async (req, auth, res) => {
+    try {
+        const sort = [{
+                createdAt: -1
+            }];
+        const limit = req.query.limit ? parseInt(req.query.limit) : 30;
+        const skip = req.query.skip ? parseInt(req.query.skip) : 0;
+        const user = await User.findOne({_id: req.params.id});
+        await user.populate({
+            path: "follower",
+            select: "_id screenName tag followercount followingcount profileAvater.url Biography",
+            options: {
+                limit: parseInt(limit), // to limit number of user
+                skip: parseInt(skip),
+                sort
+            }
+        });
 
-const userGetFollowing = async (req, auth, res) => {}
+        return res.status(200).send(user.follower)
+    } catch (e) {
+        res.status(404).send()
+    }
+}
+
+const userGetFollowing = async (req, auth, res) => {
+    try {
+        const sort = [{
+                createdAt: -1
+            }];
+        const limit = req.query.limit ? parseInt(req.query.limit) : 30;
+        const skip = req.query.skip ? parseInt(req.query.skip) : 0;
+        const user = await User.findOne({_id: req.params.id});
+        await user.populate({
+            path: "following",
+            select: "_id screenName tag followercount followingcount profileAvater.url Biography",
+            options: {
+                limit: parseInt(limit), // to limit number of user
+                skip: parseInt(skip),
+                sort
+            }
+        });
+        return res.status(200).send(user.following)
+    } catch (e) {
+        res.status(404).send()
+    }
+}
+
+/**const userIsFollowingOther = async (req, auth, res) => {
+ // to check if you follow the user or not
+        if (! user.follower.length < 1) {
+            user.follower = user.follower.map((follow) => {
+                const isfollowed = req.user.following.some((followed) => followed.followingId.toString() == follow._id.toString())
+                delete follow._doc.following;
+                if (isfollowed) {
+                    userFollower = {
+                        ...follow._doc,
+                        isfollowing: true
+                    }
+                } else {
+                    userFollower = {
+                        ...follow._doc,
+                        isfollowing: false
+                    }
+                }
+                return userFollower
+            })
+        }
+    }
+ */
 
 module.exports = {
     userBan,
