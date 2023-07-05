@@ -64,7 +64,7 @@ userSchema = mongoose.Schema({
         required: true,
         minlength: 6
     },
-    verified:{ // blueCheckMark
+    verified: { // blueCheckMark
         type: Boolean,
         default: false
     },
@@ -144,7 +144,8 @@ userSchema = mongoose.Schema({
     /*verifiedemail: {
         type: Boolean,
         default: false
-    },*/ //verified field isn't needed since we send verification code, check that the email exists and doesn't belong to any other users all before user is created 
+    },*/
+    // verified field isn't needed since we send verification code, check that the email exists and doesn't belong to any other users all before user is created
 }, {
     timestamps: true,
     toJSON: {
@@ -155,6 +156,18 @@ userSchema = mongoose.Schema({
     }
 
 });
+
+userSchema.virtual('Tweets', {
+    ref: 'Tweet',
+    localField: '_id',
+    foreignField: 'authorId'
+})
+
+userSchema.virtual('follower', {
+    ref: 'User',
+    localField: '_id',
+    foreignField: 'following.followingId'
+})
 
 userSchema.methods.toJSON = function () {
     const userObject = this.toObject()
@@ -207,7 +220,7 @@ userSchema.statics.findByCredentials = async (emailorUsername, password) => {
             }
         ]
     })
-    if (! user) { 
+    if (! user) {
         throw new Error('unable to login as user is not found')
     }
     if (! user.verified) {
@@ -217,7 +230,7 @@ userSchema.statics.findByCredentials = async (emailorUsername, password) => {
     if (! ismatch) {
         throw new Error("unable to login")
     }
-    
+
     return user
 }
 
