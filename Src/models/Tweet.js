@@ -67,6 +67,10 @@ var tweetSchema = new mongoose.Schema({
     textEdited: {
         type: boolean,
         default: false
+    },
+    pinned: {
+        type: boolean,
+        default: false
     }
 
 }, {
