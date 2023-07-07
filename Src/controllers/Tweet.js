@@ -1,23 +1,25 @@
-const Tweet = require("../models/Tweet");
-const auth = require("../middleware/auth");
+const Tweet = require("../models/Tweet")
+const auth = require("../middleware/auth")
 const filterText = require("../helper-functions/badwords-filter")
+const {uploadTweetGallery, processImg} = require("../middleware/multer")
 // auth provides req.user and req.token to the request object
+// admin bypasses only delete and delete all
 
-// needs to add admin bypass for all functions
-// check on blocked users
-
-// add upload img to tweet gallery
+//To do
 // view multiple tweets / user profile
 
 const maxTweetLength = 150;
-const createTweet = async (req, auth, res) => {
+const createTweet = async (req, auth, uploadTweetGallery, res) => {
     try {
         req.body.text = req.body.text.slice(0, maxTweetLength); // triming the text
         req.body.text = filterText(req.body.text) // filtering any bad words in it
-        const tweet = new Tweet({
+        let tweet = new Tweet({
             ...req.body,
             owner: req.user._id
         })
+        for (let index = 0; index < req.files.length; index++) {
+            tweet.gallery.push( processImg( req.files[index].buffer ))
+        }
         await tweet.save()
 
         // increases reply or retweet count if this tweet was a result of that
@@ -53,12 +55,20 @@ const createTweet = async (req, auth, res) => {
 const deleteTweet = async (req, auth, res) => {
     try {
         const _id = req.params.id
-        const owner = req.user._id
-        const tweet = await tweet.findOneAndDelete({owner, _id})
+        let tweet = null
+        if (req.user.adminCheck() === true){
+            tweet = await Tweet.findOneAndDelete({_id})
+        }
+        else{
+            const owner = req.user._id
+            tweet = await Tweet.findOneAndDelete({owner, _id})
+        }
+        
         if (! tweet) {
             res.status(404).send()
         }
         res.status(200).send(tweet)
+
     } catch (e) {
         res.status(400).send(e)
     }
@@ -67,9 +77,16 @@ const deleteTweet = async (req, auth, res) => {
 
 const deleteAllUserTweets = async (req, auth, res) => {
     try {
-        const owner = req.user._id
-        const tweet = await tweet.deleteMany({owner})
-        if (! tweet) {
+        owner = req.params.id
+        let tweets = null
+        if (req.user.adminCheck() === true){
+            tweets = await Tweet.deleteMany({owner})
+        }
+        else{
+            tweets = await Tweet.deleteMany({owner})
+        }
+
+        if (! tweets) {
             res.status(404).send()
         }
         res.status(200).send()
@@ -83,7 +100,7 @@ const editTweetText = async (req, auth, res) => {
     try {
         const _id = req.params.id
         const owner = req.user._id
-        const tweet = await tweet.findOne({owner, _id})
+        const tweet = await Tweet.findOne({owner, _id})
         if (! tweet) {
             res.status(404).send()
         }
@@ -111,7 +128,7 @@ const viewTweet = async (req, res) => {
         
 
         const _id = req.params.id
-        const tweet = await tweet.findOne({_id})
+        const tweet = await Tweet.findOne({_id})
         if (! tweet) {
             res.status(404).send()
         }
@@ -183,7 +200,7 @@ const tweetLikersObjString = "_id screenName tag isPrivate profileAvater";
 const viewTweetLikers = async (req, res) => {
     try {
         const _id = req.params.id
-        const tweet = await tweet.findOne({_id})
+        const tweet = await Tweet.findOne({_id})
         if (! tweet) {
             res.status(404).send()
         }
@@ -201,7 +218,7 @@ const viewTweetLikers = async (req, res) => {
 const likeUnlikeTweet = async (req, auth, res) => {
     try {
         const _id = req.params.id
-        const tweet = await tweet.findOne({_id})
+        const tweet = await Tweet.findOne({_id})
         if (! tweet) {
             res.status(404).send()
         }
@@ -229,7 +246,7 @@ const userTweets = async (req, auth, res) => {
     try {
         const limit = req.query.limit ? parseInt(req.query.limit) : 30;
         const skip = req.query.skip ? parseInt(req.query.skip) : 0; 
-        const parsematch(str) => {
+        const parsematch = (str) => {
             return "false" === str
         }
         const match = {
@@ -297,7 +314,23 @@ const userTweets = async (req, auth, res) => {
     }
 }
 
-const pinUnpinTweet = (req, auth, res) => {}
+const pinUnpinTweet = async (req, auth, res) => {
+    try {
+        const _id = req.params.id
+        const tweet = await Tweet.findOne({_id, owner: req.user._id})
+        if (! tweet) {
+            res.status(404).send()
+        }
+
+        tweet.pinned = ! tweet.pinned
+
+        await tweet.save()
+
+        res.status(200).send(tweet)
+    } catch (e) {
+        res.status(400).send(e)
+    }
+}
 
 module.exports = {
     createTweet,
@@ -307,5 +340,6 @@ module.exports = {
     viewTweet,
     viewTweetLikers,
     likeUnlikeTweet,
-    userTweets
+    userTweets,
+    pinUnpinTweet
 }
