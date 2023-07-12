@@ -1,10 +1,33 @@
 const auth = require("../middleware/auth");
 const lodash = require('lodash');
+const {uploadUserBanner, uploadUserProfileAvatar, ProcessAvatar, processBanner} = require("../middleware/multer")
 
 //to do
-// upload avatar and banner
 // search / by user tag /get user by id
 
+const userProfileAvatar = async (req, auth, uploadUserProfileAvatar, res) => {
+    try {
+        req.user.profileAvater = ( ProcessAvatar( req.file.buffer ))
+        await req.user.save()
+        
+        res.status(200).send(req.user)
+        
+    } catch (e) {
+        res.status(400).send(e)
+    }
+}
+
+const userBanner = async (req, auth, uploadUserBanner, res) => {
+    try {
+        req.user.banner = ( processBanner( req.file.buffer ))
+        await req.user.save()
+        
+        res.status(200).send(req.user)
+        
+    } catch (e) {
+        res.status(400).send(e)
+    }
+}
 
 const userBan = async (req, auth, res) => { // doesn't delete the account just locks out everything //requires admin user
     try {
@@ -192,5 +215,7 @@ module.exports = {
     userGetFollowers,
     userGetFollowing,
     userSuggestedAccounts,
-    userGetMe
+    userGetMe,
+    userProfileAvatar,
+    userBanner
 }
