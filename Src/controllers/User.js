@@ -2,16 +2,121 @@ const auth = require("../middleware/auth");
 const lodash = require('lodash');
 const {uploadUserBanner, uploadUserProfileAvatar, ProcessAvatar, processBanner} = require("../middleware/multer")
 
-//to do
-// search / by user tag /get user by id
+
+const userSearchByTag = async (req, auth, res) => {
+    try {
+        const sort = [{
+                createdAt: -1
+            }];
+        const limit = req.query.limit ? parseInt(req.query.limit) : 30;
+        const skip = req.query.skip ? parseInt(req.query.skip) : 0;
+        const tag = req.query.tag;
+        const users = await User.find({
+            tag: {
+                $regex: tag,
+                $options: 'i'
+            }
+        }).select("_id screenName tag followercount followingcount profileAvater Biography").limit(limit).skip(skip).sort(sort);
+
+        res.send(users);
+    } catch (e) {
+        res.status(400).send({error: e.toString()});
+
+    }
+}
+
+const getUserbyid = async (req, auth, res) => {
+    try {
+        let user = await User.findById(req.params.id);
+        if (! user) {
+            throw new Error("no user found");
+        }
+        const isfollowed = req.user.following.some((followed) => followed.followingId.toString() == user._id.toString());
+        let isfollowing;
+        if (isfollowed) {
+            isfollowing = true;
+        } else {
+            isfollowing = false;
+        }
+        if (user.location.visability === false) {
+            user.location = undefined;
+        }
+        if (user.birth.visability === false) {
+            user.birth = undefined;
+        }
+        user.ban = undefined;
+        user.email = undefined;
+        user.Notificationssetting = undefined;
+
+        if (user.isPrivate === true) {
+            user.birth = null;
+            user.location = "";
+            user.banner.url = null;
+            user.Biography = "";
+            user.phoneNumber = 0;
+            user.verified = null;
+            user.website = "";
+            user.darkMode = undefined;
+        }
+
+        res.status(200).send(user)
+
+    } catch (e) {
+        res.status(400).send(e)
+    }
+}
+
+const getUserbytag = async (req, auth, res) => {
+    try {
+        const tag = req.params.tag
+
+        let user = await User.findOne({tag});
+        if (! user) {
+            throw new Error("no user found");
+        }
+        const isfollowed = req.user.following.some((followed) => followed.followingId.toString() == user._id.toString());
+        let isfollowing;
+        if (isfollowed) {
+            isfollowing = true;
+        } else {
+            isfollowing = false;
+        }
+        if (user.location.visability === false) {
+            user.location = undefined;
+        }
+        if (user.birth.visability === false) {
+            user.birth = undefined;
+        }
+        user.ban = undefined;
+        user.email = undefined;
+        user.Notificationssetting = undefined;
+
+        if (user.isPrivate === true) {
+            user.birth = null;
+            user.location = "";
+            user.banner.url = null;
+            user.Biography = "";
+            user.phoneNumber = 0;
+            user.verified = null;
+            user.website = "";
+            user.darkMode = undefined;
+        }
+
+        res.status(200).send(user)
+
+    } catch (e) {
+        res.status(400).send(e)
+    }
+}
+
 
 const userProfileAvatar = async (req, auth, uploadUserProfileAvatar, res) => {
     try {
-        req.user.profileAvater = ( ProcessAvatar( req.file.buffer ))
+        req.user.profileAvater = (ProcessAvatar(req.file.buffer))
         await req.user.save()
-        
+
         res.status(200).send(req.user)
-        
+
     } catch (e) {
         res.status(400).send(e)
     }
@@ -19,11 +124,11 @@ const userProfileAvatar = async (req, auth, uploadUserProfileAvatar, res) => {
 
 const userBanner = async (req, auth, uploadUserBanner, res) => {
     try {
-        req.user.banner = ( processBanner( req.file.buffer ))
+        req.user.banner = (processBanner(req.file.buffer))
         await req.user.save()
-        
+
         res.status(200).send(req.user)
-        
+
     } catch (e) {
         res.status(400).send(e)
     }
@@ -192,7 +297,7 @@ const userSuggestedAccounts = async (req, auth, res) => {
             isPrivate: false
         })
         suggestedAccounts = lodash.sampleSize(suggestedAccounts, 4)
-        
+
         res.send({suggestedAccounts})
 
     } catch (e) {
@@ -202,11 +307,11 @@ const userSuggestedAccounts = async (req, auth, res) => {
 
 const userGetMe = async (req, auth, res) => {
     try {
-      res.send(req.user);
+        res.send(req.user);
     } catch (e) {
-      res.status(400).send({ error: e.toString() });
+        res.status(400).send({error: e.toString()});
     }
-  }
+}
 
 module.exports = {
     userBan,
@@ -217,5 +322,8 @@ module.exports = {
     userSuggestedAccounts,
     userGetMe,
     userProfileAvatar,
-    userBanner
+    userBanner,
+    getUserbyid,
+    getUserbytag,
+    userSearchByTag
 }
