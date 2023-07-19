@@ -5,8 +5,8 @@ const {uploadTweetGallery, processImg} = require("../middleware/multer")
 // auth provides req.user and req.token to the request object
 // admin bypasses only delete and delete all
 
-//To do
-// view multiple tweets / user profile
+// To do
+// view multiple tweets / user timeline
 
 const maxTweetLength = 150;
 const createTweet = async (req, auth, uploadTweetGallery, res) => {
@@ -18,7 +18,7 @@ const createTweet = async (req, auth, uploadTweetGallery, res) => {
             owner: req.user._id
         })
         for (let index = 0; index < req.files.length; index++) {
-            tweet.gallery.push( processImg( req.files[index].buffer ))
+            tweet.gallery.push(processImg(req.files[index].buffer))
         }
         await tweet.save()
 
@@ -56,14 +56,13 @@ const deleteTweet = async (req, auth, res) => {
     try {
         const _id = req.params.id
         let tweet = null
-        if (req.user.adminCheck() === true){
+        if (req.user.adminCheck() === true) {
             tweet = await Tweet.findOneAndDelete({_id})
-        }
-        else{
+        } else {
             const owner = req.user._id
             tweet = await Tweet.findOneAndDelete({owner, _id})
         }
-        
+
         if (! tweet) {
             res.status(404).send()
         }
@@ -79,10 +78,9 @@ const deleteAllUserTweets = async (req, auth, res) => {
     try {
         owner = req.params.id
         let tweets = null
-        if (req.user.adminCheck() === true){
+        if (req.user.adminCheck() === true) {
             tweets = await Tweet.deleteMany({owner})
-        }
-        else{
+        } else {
             tweets = await Tweet.deleteMany({owner})
         }
 
@@ -123,7 +121,7 @@ const userObjSelectString = "_id screenName tag isPrivate profileAvater";
 const viewTweet = async (req, res) => {
     try {
         if (req.user.isBanned === true) 
-            return res.status(400).send("user is banned")
+            return res.status(400).send("tweet belongs to user who is banned")
 
         
 
@@ -178,13 +176,13 @@ const viewTweet = async (req, res) => {
         let retweetedTweetIsLiked = null
         if (tweet.retweetedTweet) 
             retweetedTweetIsLiked = false
+
         
+
         if (tweet.retweetedTweet && tweet.retweetedTweet.tweetId.likes.some((like) => like.like.toString() === req.user._id.toString())) 
             retweetedTweetIsLiked = true
 
-
         
-
 
         const currentUserLikesThisTweet = tweet.likes.some((like) => like.like.toString() === req.user._id.toString());
 
@@ -245,22 +243,27 @@ const likeUnlikeTweet = async (req, auth, res) => {
 const userTweets = async (req, auth, res) => {
     try {
         const limit = req.query.limit ? parseInt(req.query.limit) : 30;
-        const skip = req.query.skip ? parseInt(req.query.skip) : 0; 
+        const skip = req.query.skip ? parseInt(req.query.skip) : 0;
         const parsematch = (str) => {
             return "false" === str
         }
         const match = {
-            "isRetweet": req.query.retweets ? parsematch(req.query.retweets) : true,
-            "isReply": req.query.replys ? parsematch(req.query.replys) : true,
-            "pinned": req.query.pinned ? parsematch(req.query.pinned) : false,
+            "isRetweet": req.query.retweets ? parsematch(req.query.retweets) : false,
+            "isReply": req.query.replys ? parsematch(req.query.replys) : false,
+            "pinned": req.query.pinned ? parsematch(req.query.pinned) : false
         };
         const sortParse = (str) => {
-            if (str === 'asc') return -1
-            else return 1
+            if (str === 'asc') 
+                return -1
+             else 
+                return 1
+
+            
+
         }
         const sort = [{
-            createdAt: req.query.sort ? sortParse(req.query.sort) : -1
-        }];
+                createdAt: req.query.sort ? sortParse(req.query.sort) : -1
+            }];
 
         const user = await User.findOne({_id: req.params.id});
         if (! user) {
@@ -272,7 +275,7 @@ const userTweets = async (req, auth, res) => {
             path: "Tweets",
             match,
             options: {
-                limit: parseInt(limit), 
+                limit: parseInt(limit),
                 skip: parseInt(skip)
             },
             populate: [
@@ -280,8 +283,8 @@ const userTweets = async (req, auth, res) => {
                     path: "owner",
                     strictPopulate: false,
                     select: "_id screenName tag  profileAvater"
-                }, { 
-                    path: "retweetedTweet.tweetId",
+                }, {
+                    path: "retweetedTweet",
                     strictPopulate: false,
                     select: "_id replyingTo owner text tags likeCount retweetCount gallery likes replyCount createdAt",
                     populate: {
@@ -290,7 +293,7 @@ const userTweets = async (req, auth, res) => {
                         select: "_id screenName tag profileAvater"
                     }
                 }, {
-                    path: "replyingTo.tweetId",
+                    path: "replyingTo",
                     strictPopulate: true,
                     select: "_id replyingTo owner text tags likeCount retweetCount gallery likes replyCount createdAt",
                     populate: {
@@ -306,10 +309,25 @@ const userTweets = async (req, auth, res) => {
             }
         });
 
-        //need to add user viewing tweets seeing if they liked or retweeted them or not
+        tweets = tweets.map((tweet) => {
+            const isliked = tweet.likes.some((like) => like.like.toString() == req.user._id.toString());
+            if (isliked) {
+                delete tweet._doc.likes;
+                return {
+                    ...tweet._doc,
+                    isliked: true
+                };
+            } else {
+                delete tweet.likes;
+                return {
+                    ...tweet._doc,
+                    isliked: false
+                };
+            }
+        })
 
         res.send(tweets);
-    } catch (e) { 
+    } catch (e) {
         res.status(400).send({error: e.toString()});
     }
 }
@@ -332,6 +350,155 @@ const pinUnpinTweet = async (req, auth, res) => {
     }
 }
 
+
+const userLikedTweets = async (req, auth, res) => {
+    try {
+
+        const limit = req.query.limit ? parseInt(req.query.limit) : 30;
+        const skip = req.query.skip ? parseInt(req.query.skip) : 0;
+        let userrequiredId = mongoose.Types.ObjectId(req.params.id);
+        let user = await User.findById(req.params.id);
+        if (! user) {
+            e = "user doesn't exist ";
+            throw e;
+        }
+
+        let likedtweets = await Tweet.find({"likes.like": userrequiredId}).populate([
+            {
+                path: "owner",
+                select: "_id screenName isPrivate tag profileAvater"
+            }, {
+                path: "retweetedTweet",
+                select: "_id owner text tags likeCount retweetCount gallery likes replyCount createdAt",
+                populate: {
+                    path: "owner",
+                    strictPopulate: false,
+                    select: "_id screenName tag profileAvater"
+                }
+            }, {
+                path: "replyingTo",
+                select: "_id owner text tags likeCount retweetCount gallery likes replyCount createdAt",
+                populate: {
+                    path: "owner",
+                    strictPopulate: false,
+                    select: "_id screenName tag isPrivate profileAvater"
+                }
+            }
+        ]).limit(limit).skip(skip).sort({createdAt: -1})
+
+
+        if (likedtweets.length < 1) {
+            res.status(404).send("no tweets found");
+        }
+
+        likedtweets = likedtweets.map((tweet) => {
+            const isliked = tweet.likes.some((like) => like.like.toString() == req.user._id.toString());
+            if (isliked) {
+                delete tweet.likes;
+                return {
+                    ...tweet._doc,
+                    isliked: true
+                };
+
+            } else {
+                delete tweet.likes;
+                return {
+                    ...tweet._doc,
+                    isliked: false
+                };
+            }
+        })
+
+        res.send(likedtweets);
+    } catch (e) {
+        res.status(400).send({error: e.toString()})
+    }
+}
+
+const UserReplies = async (req, auth, res) => {
+    try {
+
+        const limit = req.query.limit ? parseInt(req.query.limit) : 30;
+        const skip = req.query.skip ? parseInt(req.query.skip) : 0;
+        const user = await User.findOne({_id: req.params.id});
+        if (! user) {
+            e = "user doesn't exist";
+            throw e;
+        }
+
+        const sort = [{
+                createdAt: -1
+            }];
+        const tweets = await user.populate({
+            path: "Tweets",
+            options: {
+                limit: parseInt(limit), // to limit number of user
+                skip: parseInt(skip)
+            },
+            populate: [
+                {
+                    path: "owner",
+                    strictPopulate: false,
+                    select: "_id screenName tag  profileAvater"
+                }, { // if it is a retweet view content of retweeted tweet
+                    path: "retweetedTweet",
+                    strictPopulate: false,
+                    select: "_id replyingTo owner text tags retweetedTweet likeCount retweetCount gallery likes replyCount createdAt",
+                    populate: {
+                        path: "owner",
+                        strictPopulate: false,
+                        select: "_id screenName tag profileAvater"
+                    }
+                }, {
+                    path: "replyingTo",
+                    strictPopulate: true,
+                    select: "_id replyingTo owner text tags retweetedTweet likeCount retweetCount gallery likes replyCount createdAt",
+                    populate: {
+                        path: "owner",
+                        strictPopulate: false,
+                        select: "_id screenName tag isPrivate profileAvater"
+                    }
+                },
+            ],
+            options: {
+                sort
+            }
+        })
+
+        if (tweets.length < 1) {
+            res.status(404).send("no tweets found")
+        } else {
+
+            tweets = tweets.map((tweet) => {
+                const isliked = tweet.likes.some((like) => like.like.toString() == req.user._id.toString());
+                if (isliked) {
+                    delete tweet._doc.likes;
+                    return {
+                        ...tweet._doc,
+                        isliked: true
+                    };
+
+                } else {
+                    delete tweet._doc.likes;
+                    return {
+                        ...tweet._doc,
+                        isliked: false
+                    };
+
+                }
+            })
+
+        }
+
+        res.send(tweets);
+
+    } catch (e) {
+        res.status(400).send({error: e.toString()});
+    }
+}
+
+const UserTimeline = async (req, auth, res) => {}
+
 module.exports = {
     createTweet,
     deleteTweet,
@@ -341,5 +508,8 @@ module.exports = {
     viewTweetLikers,
     likeUnlikeTweet,
     userTweets,
-    pinUnpinTweet
+    pinUnpinTweet,
+    userLikedTweets,
+    UserReplies,
+    UserTimeline
 }
