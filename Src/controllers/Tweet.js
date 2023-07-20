@@ -281,15 +281,15 @@ const userTweets = async (req, auth, res) => {
             populate: [
                 {
                     path: "owner",
-                    strictPopulate: false,
+
                     select: "_id screenName tag  profileAvater"
                 }, {
                     path: "retweetedTweet",
-                    strictPopulate: false,
+
                     select: "_id replyingTo owner text tags likeCount retweetCount gallery likes replyCount createdAt",
                     populate: {
                         path: "owner",
-                        strictPopulate: false,
+
                         select: "_id screenName tag profileAvater"
                     }
                 }, {
@@ -298,7 +298,7 @@ const userTweets = async (req, auth, res) => {
                     select: "_id replyingTo owner text tags likeCount retweetCount gallery likes replyCount createdAt",
                     populate: {
                         path: "owner",
-                        strictPopulate: false,
+
                         select: "_id screenName tag profileAvater"
                     }
                 },
@@ -372,7 +372,7 @@ const userLikedTweets = async (req, auth, res) => {
                 select: "_id owner text tags likeCount retweetCount gallery likes replyCount createdAt",
                 populate: {
                     path: "owner",
-                    strictPopulate: false,
+
                     select: "_id screenName tag profileAvater"
                 }
             }, {
@@ -380,7 +380,7 @@ const userLikedTweets = async (req, auth, res) => {
                 select: "_id owner text tags likeCount retweetCount gallery likes replyCount createdAt",
                 populate: {
                     path: "owner",
-                    strictPopulate: false,
+
                     select: "_id screenName tag isPrivate profileAvater"
                 }
             }
@@ -438,15 +438,15 @@ const UserReplies = async (req, auth, res) => {
             populate: [
                 {
                     path: "owner",
-                    strictPopulate: false,
+
                     select: "_id screenName tag  profileAvater"
                 }, { // if it is a retweet view content of retweeted tweet
                     path: "retweetedTweet",
-                    strictPopulate: false,
+
                     select: "_id replyingTo owner text tags retweetedTweet likeCount retweetCount gallery likes replyCount createdAt",
                     populate: {
                         path: "owner",
-                        strictPopulate: false,
+
                         select: "_id screenName tag profileAvater"
                     }
                 }, {
@@ -455,7 +455,7 @@ const UserReplies = async (req, auth, res) => {
                     select: "_id replyingTo owner text tags retweetedTweet likeCount retweetCount gallery likes replyCount createdAt",
                     populate: {
                         path: "owner",
-                        strictPopulate: false,
+
                         select: "_id screenName tag isPrivate profileAvater"
                     }
                 },
@@ -497,7 +497,59 @@ const UserReplies = async (req, auth, res) => {
     }
 }
 
-const UserTimeline = async (req, auth, res) => {}
+const UserTimeline = async (req, auth, res) => { // ------------
+    try {
+
+        const limit = req.query.limit ? parseInt(req.query.limit) : 30;
+        const skip = req.query.skip ? parseInt(req.query.skip) : 0;
+        let followingsId = req.user.following.map((user) => {
+            return user.followingId;
+        }) // gets who user follows
+
+        followingsId.push(req.user._id);
+
+        let followerTweet = await Tweet.find({
+            owner: {
+                $in: followingsId
+            },
+            replyingTo: null
+        }).sort({createdAt: -1}).limit(limit).skip(skip).populate({
+            path: "retweetedTweet",
+
+            select: "_id replyingTo owner text tags likeCount retweetCount replyCount gallery likes createdAt",
+            populate: {
+                path: "owner",
+                strictPopulate: true,
+                select: "_id screenName tag profileAvater"
+            }
+        }).populate({path: "owner", select: "_id screenName tag profileAvater"})
+
+        followerTweet = followerTweet.map((tweet) => {
+
+            const isliked = tweet.likes.some((like) => like.like.toString() == req.user._id.toString());
+            if (isliked) {
+                delete tweet._doc.likes;
+                const tweets = {
+                    ...tweet._doc,
+                    isliked: true
+                };
+                return tweets;
+            } else {
+                delete tweet._doc.likes;
+                const tweets = {
+                    ...tweet._doc,
+                    isliked: false
+                };
+                return tweets;
+            }
+        })
+
+        res.send(followerTweet)
+
+    } catch (e) {
+        res.status(400).send({error: e.toString()});
+    }
+}
 
 module.exports = {
     createTweet,
