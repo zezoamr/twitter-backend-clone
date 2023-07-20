@@ -18,7 +18,6 @@ const reportSchema = new mongoose.Schema({
     },
     reportedId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
         required: true,
     },
 }, {
