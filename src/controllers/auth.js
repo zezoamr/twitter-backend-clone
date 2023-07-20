@@ -6,6 +6,17 @@ const bycrypt = require("bcryptjs")
 const {generatePassword} = require('../helper-functions/passgenerator')
 const {generateVerificationCode} = require('../helper-functions/verifycodegen')
 
+const UserSignUp = async (req, res) => {
+    try {
+        const user = new User(req.body)
+        await user.save()
+        const token = await user.generateAuthToken() // generates and pushes token to store it
+        res.status(201).send({ user, token })
+    } catch (e) {
+        res.status(400).send(e)
+    }
+}
+
 
 const userLogin = async (req, res) => {
     try {
@@ -23,8 +34,7 @@ const userLogin = async (req, res) => {
             throw new Error()
         }
 
-        const token = user.generateAuthToken()
-        user.tokens.push(token)
+        const token = user.generateAuthToken() // generates and pushes token to store it
 
         res.status(200).send({user, token})
 
@@ -146,6 +156,7 @@ const userChangePassword = async (req, auth, res) => {
 }
 
 module.exports = {
+    UserSignUp,
     userLogin,
     userLogout,
     userLogoutAllDevices,
