@@ -10,6 +10,7 @@ const auth = async (req, res, next) => {
         if (!user) {
             throw new Error()
         }
+        if(user && user.banCheck()) res.status(400).send("user is banned")
 
         req.token = token
         req.user = user

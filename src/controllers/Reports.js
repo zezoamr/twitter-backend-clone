@@ -1,8 +1,7 @@
-const auth = require("../middleware/auth");
 const Report = require("../models/Report");
 
 
-const ReportDelete = async (req, auth, res) => { // deletes user and his tweets
+const ReportDelete = async (req, res) => { 
     try {
         const _id = req.params.id
         if (!req.user.adminCheck()) {
@@ -16,7 +15,7 @@ const ReportDelete = async (req, auth, res) => { // deletes user and his tweets
     }
 }
 
-const ReportDeleteByReportedId = async (req, auth, res) => { // deletes user and his tweets
+const ReportDeleteByReportedId = async (req, res) => { // deletes all related reports to a reported user or a reported tweet
     try {
         const reportedId = req.params.id
         if (!req.user.adminCheck()) {
@@ -30,7 +29,7 @@ const ReportDeleteByReportedId = async (req, auth, res) => { // deletes user and
     }
 }
 
-const NewReport = async (req, auth, res) => {
+const NewReport = async (req, res) => {
     try {
         const report = new Report(req.body)
         await report.save()
@@ -63,7 +62,7 @@ const viewReport = async (req, res) => {
     }
 }
 
-const viewReports = async (req, auth, res) => { 
+const viewReports = async (req, res) => { 
     try {
         if (!req.user.adminCheck()) {
             res.status(400).send("not an admin")

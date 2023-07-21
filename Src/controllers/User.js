@@ -1,9 +1,8 @@
-const auth = require("../middleware/auth");
 const lodash = require('lodash');
-const {uploadUserBanner, uploadUserProfileAvatar, ProcessAvatar, processBanner} = require("../middleware/multer")
+const {ProcessAvatar, processBanner} = require("../middleware/multer")
 
 
-const userSearchByTag = async (req, auth, res) => {
+const userSearchByTag = async (req, res) => {
     try {
         const sort = [{
                 createdAt: -1
@@ -25,7 +24,7 @@ const userSearchByTag = async (req, auth, res) => {
     }
 }
 
-const getUserbyid = async (req, auth, res) => {
+const getUserbyid = async (req, res) => {
     try {
         let user = await User.findById(req.params.id);
         if (! user) {
@@ -66,7 +65,7 @@ const getUserbyid = async (req, auth, res) => {
     }
 }
 
-const getUserbytag = async (req, auth, res) => {
+const getUserbytag = async (req, res) => {
     try {
         const tag = req.params.tag
 
@@ -110,7 +109,7 @@ const getUserbytag = async (req, auth, res) => {
 }
 
 
-const userProfileAvatar = async (req, auth, uploadUserProfileAvatar, res) => {
+const userProfileAvatar = async (req, res) => {
     try {
         req.user.profileAvater = (ProcessAvatar(req.file.buffer))
         await req.user.save()
@@ -122,7 +121,7 @@ const userProfileAvatar = async (req, auth, uploadUserProfileAvatar, res) => {
     }
 }
 
-const userBanner = async (req, auth, uploadUserBanner, res) => {
+const userBanner = async (req, res) => {
     try {
         req.user.banner = (processBanner(req.file.buffer))
         await req.user.save()
@@ -134,7 +133,7 @@ const userBanner = async (req, auth, uploadUserBanner, res) => {
     }
 }
 
-const userBan = async (req, auth, res) => { // doesn't delete the account just locks out everything //requires admin user
+const userBan = async (req, res) => { // doesn't delete the account just locks out everything //requires admin user
     try {
         const _id = req.params.id
         if (!req.user.adminCheck()) {
@@ -157,7 +156,7 @@ const userBan = async (req, auth, res) => { // doesn't delete the account just l
     }
 }
 
-const userDelete = async (req, auth, res) => { // deletes user and his tweets
+const userDelete = async (req, res) => { // deletes user and his tweets
     try {
         const _id = req.params.id
         if (!req.user.adminCheck() && req.user._id != _id) {
@@ -178,7 +177,7 @@ const userDelete = async (req, auth, res) => { // deletes user and his tweets
     }
 }
 
-const userFollowUnFollow = async (req, auth, res) => {
+const userFollowUnFollow = async (req, res) => {
     try { // you can not follow your self
         if (req.params.id.toString() == req.user._id.toString()) {
             throw new Error("you can not follow your self ")
@@ -215,7 +214,7 @@ const userFollowUnFollow = async (req, auth, res) => {
 }
 
 
-const userGetFollowing = async (req, auth, res) => {
+const userGetFollowing = async (req, res) => {
     try {
         const sort = [{
                 createdAt: -1
@@ -238,7 +237,7 @@ const userGetFollowing = async (req, auth, res) => {
     }
 }
 
-const userGetFollowers = async (req, auth, res) => {
+const userGetFollowers = async (req, res) => {
     try {
         const sort = [{
                 createdAt: -1
@@ -282,7 +281,7 @@ const userGetFollowers = async (req, auth, res) => {
     }
 }
 
-const userSuggestedAccounts = async (req, auth, res) => {
+const userSuggestedAccounts = async (req, res) => {
     try {
 
         const followingsId = req.user.following.map((user) => {
@@ -305,7 +304,7 @@ const userSuggestedAccounts = async (req, auth, res) => {
     }
 }
 
-const userGetMe = async (req, auth, res) => {
+const userGetMe = async (req, res) => {
     try {
         res.send(req.user);
     } catch (e) {

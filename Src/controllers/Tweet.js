@@ -1,22 +1,16 @@
 const Tweet = require("../models/Tweet")
-const auth = require("../middleware/auth")
+const User = require("../models/User")
 const filterText = require("../helper-functions/badwords-filter")
-const {uploadTweetGallery, processImg} = require("../middleware/multer")
+const {processImg} = require("../middleware/multer")
 // auth provides req.user and req.token to the request object
 // admin bypasses only delete and delete all
 
-// To do
-// view multiple tweets / user timeline
-
 const maxTweetLength = 150;
-const createTweet = async (req, auth, uploadTweetGallery, res) => {
+const createTweet = async (req, res) => {
     try {
         req.body.text = req.body.text.slice(0, maxTweetLength); // triming the text
         req.body.text = filterText(req.body.text) // filtering any bad words in it
-        let tweet = new Tweet({
-            ...req.body,
-            owner: req.user._id
-        })
+        let tweet = new Tweet(req.body)
         for (let index = 0; index < req.files.length; index++) {
             tweet.gallery.push(processImg(req.files[index].buffer))
         }
@@ -52,7 +46,7 @@ const createTweet = async (req, auth, uploadTweetGallery, res) => {
 
 }
 
-const deleteTweet = async (req, auth, res) => {
+const deleteTweet = async (req, res) => {
     try {
         const _id = req.params.id
         let tweet = null
@@ -74,7 +68,7 @@ const deleteTweet = async (req, auth, res) => {
 
 }
 
-const deleteAllUserTweets = async (req, auth, res) => {
+const deleteAllUserTweets = async (req, res) => {
     try {
         owner = req.params.id
         let tweets = null
@@ -94,7 +88,7 @@ const deleteAllUserTweets = async (req, auth, res) => {
 
 }
 
-const editTweetText = async (req, auth, res) => {
+const editTweetText = async (req, res) => {
     try {
         const _id = req.params.id
         const owner = req.user._id
@@ -120,16 +114,15 @@ const replyingToTweetObjSelectString = "_id replyingTo owner text likeCount retw
 const userObjSelectString = "_id screenName tag isPrivate profileAvater";
 const viewTweet = async (req, res) => {
     try {
-        if (req.user.isBanned === true) 
-            return res.status(400).send("tweet belongs to user who is banned")
-
-        
 
         const _id = req.params.id
         const tweet = await Tweet.findOne({_id})
         if (! tweet) {
             res.status(404).send()
         }
+
+        const user = await User.findOne({_id: tweet.owner})
+        if(user && user.banCheck()) res.status(400).send("tweet owner is banned")
 
         await tweet.populate({path: "owner", select: userObjSelectString})
 
@@ -172,19 +165,19 @@ const viewTweet = async (req, res) => {
                 }
             }
         })
+
         // if the tweet that is retweeted or replied to doesn't exist anymore populate will return a null object and we can assume that its deleted
         let retweetedTweetIsLiked = null
-        if (tweet.retweetedTweet) 
-            retweetedTweetIsLiked = false
-
-        
-
-        if (tweet.retweetedTweet && tweet.retweetedTweet.tweetId.likes.some((like) => like.like.toString() === req.user._id.toString())) 
-            retweetedTweetIsLiked = true
-
-        
-
-        const currentUserLikesThisTweet = tweet.likes.some((like) => like.like.toString() === req.user._id.toString());
+        let currentUserLikesThisTweet = null
+        if (req.user) {
+            if (tweet.retweetedTweet) 
+                retweetedTweetIsLiked = false
+            
+            if (tweet.retweetedTweet && tweet.retweetedTweet.tweetId.likes.some((like) => like.like.toString() === req.user._id.toString())) 
+                retweetedTweetIsLiked = true
+            
+            currentUserLikesThisTweet = tweet.likes.some((like) => like.like.toString() === req.user._id.toString());
+        }
 
 
         res.status(200).send({tweet, currentUserLikesThisTweet, retweetedTweetIsLiked})
@@ -203,6 +196,9 @@ const viewTweetLikers = async (req, res) => {
             res.status(404).send()
         }
 
+        const user = await User.findOne({_id: tweet.owner})
+        if(user && user.banCheck()) res.status(400).send("tweet owner is banned")
+
         // let likes = tweet.likes
         await tweet.populate({path: "likes", select: tweetLikersObjString})
         const likes = tweet.likes
@@ -213,7 +209,7 @@ const viewTweetLikers = async (req, res) => {
 
 }
 
-const likeUnlikeTweet = async (req, auth, res) => {
+const likeUnlikeTweet = async (req, res) => {
     try {
         const _id = req.params.id
         const tweet = await Tweet.findOne({_id})
@@ -240,27 +236,26 @@ const likeUnlikeTweet = async (req, auth, res) => {
 
 }
 
-const userTweets = async (req, auth, res) => {
+const userTweets = async (req, res) => {
     try {
         const limit = req.query.limit ? parseInt(req.query.limit) : 30;
         const skip = req.query.skip ? parseInt(req.query.skip) : 0;
         const parsematch = (str) => {
             return "false" === str
         }
-        const match = {
-            "isRetweet": req.query.retweets ? parsematch(req.query.retweets) : false,
-            "isReply": req.query.replys ? parsematch(req.query.replys) : false,
-            "pinned": req.query.pinned ? parsematch(req.query.pinned) : false
-        };
         const sortParse = (str) => {
             if (str === 'asc') 
                 return -1
              else 
                 return 1
-
             
-
         }
+        const match = {
+            "isRetweet": req.query.retweets ? parsematch(req.query.retweets) : false,
+            "isReply": req.query.replys ? parsematch(req.query.replys) : false,
+            "pinned": req.query.pinned ? parsematch(req.query.pinned) : false
+        };
+
         const sort = [{
                 createdAt: req.query.sort ? sortParse(req.query.sort) : -1
             }];
@@ -270,6 +265,7 @@ const userTweets = async (req, auth, res) => {
             e = "user doesn't exist";
             throw e;
         }
+        if(user && user.banCheck()) res.status(400).send("tweet owner is banned")
 
         const tweets = await user.populate({
             path: "Tweets",
@@ -308,23 +304,24 @@ const userTweets = async (req, auth, res) => {
                 sort
             }
         });
-
-        tweets = tweets.map((tweet) => {
-            const isliked = tweet.likes.some((like) => like.like.toString() == req.user._id.toString());
-            if (isliked) {
-                delete tweet._doc.likes;
-                return {
-                    ...tweet._doc,
-                    isliked: true
-                };
-            } else {
-                delete tweet.likes;
-                return {
-                    ...tweet._doc,
-                    isliked: false
-                };
-            }
-        })
+        if (req.user) {
+            tweets = tweets.map((tweet) => {
+                const isliked = tweet.likes.some((like) => like.like.toString() == req.user._id.toString());
+                if (isliked) {
+                    delete tweet._doc.likes;
+                    return {
+                        ...tweet._doc,
+                        isliked: true
+                    };
+                } else {
+                    delete tweet.likes;
+                    return {
+                        ...tweet._doc,
+                        isliked: false
+                    };
+                }
+            })
+        }
 
         res.send(tweets);
     } catch (e) {
@@ -332,7 +329,7 @@ const userTweets = async (req, auth, res) => {
     }
 }
 
-const pinUnpinTweet = async (req, auth, res) => {
+const pinUnpinTweet = async (req, res) => {
     try {
         const _id = req.params.id
         const tweet = await Tweet.findOne({_id, owner: req.user._id})
@@ -351,13 +348,14 @@ const pinUnpinTweet = async (req, auth, res) => {
 }
 
 
-const userLikedTweets = async (req, auth, res) => {
+const userLikedTweets = async (req, res) => {
     try {
 
         const limit = req.query.limit ? parseInt(req.query.limit) : 30;
         const skip = req.query.skip ? parseInt(req.query.skip) : 0;
         let userrequiredId = mongoose.Types.ObjectId(req.params.id);
         let user = await User.findById(req.params.id);
+        if(user && user.banCheck()) res.status(400).send("tweet owner is banned")
         if (! user) {
             e = "user doesn't exist ";
             throw e;
@@ -389,25 +387,26 @@ const userLikedTweets = async (req, auth, res) => {
 
         if (likedtweets.length < 1) {
             res.status(404).send("no tweets found");
+        } else if (req.user) {
+
+            likedtweets = likedtweets.map((tweet) => {
+                const isliked = tweet.likes.some((like) => like.like.toString() == req.user._id.toString());
+                if (isliked) {
+                    delete tweet.likes;
+                    return {
+                        ...tweet._doc,
+                        isliked: true
+                    };
+
+                } else {
+                    delete tweet.likes;
+                    return {
+                        ...tweet._doc,
+                        isliked: false
+                    };
+                }
+            })
         }
-
-        likedtweets = likedtweets.map((tweet) => {
-            const isliked = tweet.likes.some((like) => like.like.toString() == req.user._id.toString());
-            if (isliked) {
-                delete tweet.likes;
-                return {
-                    ...tweet._doc,
-                    isliked: true
-                };
-
-            } else {
-                delete tweet.likes;
-                return {
-                    ...tweet._doc,
-                    isliked: false
-                };
-            }
-        })
 
         res.send(likedtweets);
     } catch (e) {
@@ -415,12 +414,13 @@ const userLikedTweets = async (req, auth, res) => {
     }
 }
 
-const UserReplies = async (req, auth, res) => {
+const UserReplies = async (req, res) => {
     try {
 
         const limit = req.query.limit ? parseInt(req.query.limit) : 30;
         const skip = req.query.skip ? parseInt(req.query.skip) : 0;
         const user = await User.findOne({_id: req.params.id});
+        if(user && user.banCheck()) res.status(400).send("tweet owner is banned")
         if (! user) {
             e = "user doesn't exist";
             throw e;
@@ -467,7 +467,7 @@ const UserReplies = async (req, auth, res) => {
 
         if (tweets.length < 1) {
             res.status(404).send("no tweets found")
-        } else {
+        } else if (req.user) {
 
             tweets = tweets.map((tweet) => {
                 const isliked = tweet.likes.some((like) => like.like.toString() == req.user._id.toString());
@@ -497,7 +497,7 @@ const UserReplies = async (req, auth, res) => {
     }
 }
 
-const UserTimeline = async (req, auth, res) => { // ------------
+const UserTimeline = async (req, res) => {
     try {
 
         const limit = req.query.limit ? parseInt(req.query.limit) : 30;

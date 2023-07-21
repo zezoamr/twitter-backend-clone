@@ -1,4 +1,3 @@
-const auth = require("../middleware/auth")
 const User = require("../models/User")
 const {sendEmail} = require('../helper-functions/nodemailer')
 const VerifyCode = require("../models/VerifyCode")
@@ -33,6 +32,7 @@ const userLogin = async (req, res) => {
         if (! user) {
             throw new Error()
         }
+        if(user && user.banCheck()) res.status(400).send("user is banned")
 
         const token = user.generateAuthToken() // generates and pushes token to store it
 
@@ -43,7 +43,7 @@ const userLogin = async (req, res) => {
     }
 }
 
-const userLogout = async (req, auth, res) => {
+const userLogout = async (req, res) => {
     try {
         req.user.tokens = req.user.tokens.filter((token) => {
             return token.token !== req.token
@@ -56,7 +56,7 @@ const userLogout = async (req, auth, res) => {
     }
 }
 
-const userLogoutAllDevices = async (req, auth, res) => {
+const userLogoutAllDevices = async (req, res) => {
     try {
         req.user.tokens = []
         await req.user.save()
@@ -118,7 +118,7 @@ const userVerifyCode = async (req, res) => {
 
 }
 
-const userResetPassword = async (req, auth, res) => {
+const userResetPassword = async (req, res) => {
     try {
         const changedPass = generatePassword(12)
         const subject = 'your password have been reset for twitter-clone'
@@ -138,7 +138,7 @@ const userResetPassword = async (req, auth, res) => {
 
 }
 
-const userChangePassword = async (req, auth, res) => {
+const userChangePassword = async (req, res) => {
     try {
         CorrectOldPass = bycrypt.compare(req.body.pass, req.user.password)
         if (!CorrectOldPass) {
