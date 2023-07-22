@@ -14,7 +14,7 @@ const {
     getUserbyid,
     getUserbytag,
     userSearchByTag
-} = require('../controllers/auth')
+} = require('../controllers/User')
 
 const router = express.Router()
 
