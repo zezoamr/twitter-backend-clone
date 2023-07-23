@@ -114,18 +114,8 @@ userSchema = mongoose.Schema({
         default: 0
     },
     Notificationssetting: {
-        newfollow: {
-            type: Boolean,
-            default: true
-        },
-        newtweet: {
-            type: Boolean,
-            default: true
-        },
-        liketweet: {
-            type: Boolean,
-            default: true
-        }
+        type: Boolean,
+        default: true
     },
     isBanned: {
         status: {

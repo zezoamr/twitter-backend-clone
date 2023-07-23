@@ -1,5 +1,6 @@
 const Tweet = require("../models/Tweet")
 const User = require("../models/User")
+const {createNotification} = require("./Notifications");
 const filterText = require("../helper-functions/badwords-filter")
 const {processImg} = require("../middleware/multer")
 // auth provides req.user and req.token to the request object
@@ -38,6 +39,12 @@ const createTweet = async (req, res) => {
             retweetedTweet.retweetCount += 1
             await retweetedTweet.save()
         }
+
+        const notifiedusers = await User.find({ 'following.followingId': req.user._id })
+        notifiedusers.forEach(async notifieduser => {
+            await createNotification(notifieduser, tweet._id, tweet.owner, "newtweet")
+        })
+        
 
         res.status(200).send(tweet)
     } catch (e) {
@@ -225,6 +232,7 @@ const likeUnlikeTweet = async (req, res) => {
         } else {
             tweet.likes.push(req.user._id)
             tweet.likeCount += 1
+            await createNotification(tweet.owner, _id, req.user._id, "like")
         }
 
         await tweet.save()

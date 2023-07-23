@@ -1,5 +1,6 @@
 const lodash = require('lodash');
 const {ProcessAvatar, processBanner} = require("../middleware/multer")
+const {createNotification} = require("./Notifications");
 
 
 const userSearchByTag = async (req, res) => {
@@ -192,7 +193,7 @@ const userFollowUnFollow = async (req, res) => {
         // *check if you already follow the user
         const isfollowed = req.user.following.some((followed) => followed.followingId.toString() === req.params.id)
 
-        if (isfollowed) { // *add to user following
+        if (isfollowed) { // *remove from following
             req.user.following = req.user.following.filter((follow) => {
                 return follow.followingId != req.params.id;
             })
@@ -206,6 +207,7 @@ const userFollowUnFollow = async (req, res) => {
             await req.user.save()
             user.followercount ++
             await user.save()
+            await createNotification(user._id, null, req.user._id, "follow")
         }
 
     } catch (e) {
